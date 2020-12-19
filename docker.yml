@@ -1,0 +1,64 @@
+- hosts: all
+  tasks:
+     - yum_repository:
+             description: "repo for docker"
+             name: "docker-ce"
+             baseurl: "https://download.docker.com/linux/centos/7/x86_64/stable/"
+             gpgcheck: no
+     - name: "Checking docker"
+       command: "rpm -q docker-ce"
+       register: x            
+       ignore_errors: yes
+     - debug:
+             var: x
+     - name: "Installing docker"
+       command: "yum install docker-ce --nobest -y"
+       when: x.rc!=0
+
+     - name: "Checking python"
+       shell: "rpm -q python36"
+       register: y
+       ignore_errors: yes
+     - debug:
+             var: y             
+
+     - name: "Installing Python"
+       command: "yum install python36 -y"
+       when: y.rc!=0
+     - pip:
+             name: docker-py
+
+     - service:
+             name: docker
+             state: started
+
+     - name: "pulling the docker image"
+       docker_image:
+             name: "httpd:latest"
+             source: pull
+     - name: "checking docker container"
+       shell: "docker ps | grep webserver"
+       register: z
+       ignore_errors: yes
+
+     - debug:
+             var: z
+
+     - name: "starting docker container"
+       docker_container:
+             name: "webserver"
+             image: "httpd"
+             volumes:
+                     - "/var/www/html:/usr/local/apache2/htdocs/"
+             ports:
+                     - "82:80"
+             state: started
+             restart: yes
+             detach: yes
+       when: z.rc!=0
+
+     - copy:
+             dest: "/var/www/html"
+             src: "/root/que1.html"
+
+     
